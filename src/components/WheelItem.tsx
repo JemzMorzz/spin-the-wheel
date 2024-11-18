@@ -1,70 +1,37 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { getWheel } from '@/api/wheelApi'
+import { useRouter } from 'next/navigation'
+import { getItems, createItem, getItemsById } from '@/api/itemApi';
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, Plus, RotateCw, ArrowBigDown, ArrowDown } from 'lucide-react'
-import { createItem, getItems } from '@/api/itemApi'
-import { getWheel } from '@/api/wheelApi'
-
-interface Item {
-    id: number
-    name: string
-    color: string
-    description: string
+interface WheelItemProps {
+    id: string;
 }
 
-interface Wheel {
-    id: string,
-    name: string
+interface Item{
+    _id: string;
+    name: string;
+    color: string;
+    description: string;
 }
-
 const COLORS = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#2AB7CA',
     '#F0B67F', '#FE4A49', '#A3CEF1', '#7E6B8F', '#96C0B7'
 ]
+export default function WheelItem({ id }: WheelItemProps) {
 
-export default function SpinWheel() {
-    const [wheels, setWheels] = useState<Wheel[]>([])
-    const [items, setItems] = useState<Item[]>([
-        { id: 1, name: 'Item 1', color: COLORS[0], description: '' },
-        { id: 2, name: 'Item 2', color: COLORS[1], description: '' },
-        { id: 3, name: 'Item 3', color: COLORS[2], description: '' },
-    ])
+    const [items, setItems] = useState<Item[]>([]);
+    const [rotation, setRotation] = useState(0)
+    
     const [newItem, setNewItem] = useState('')
     const [spinning, setSpinning] = useState(false)
     const [result, setResult] = useState<string | null>(null)
-    const [rotation, setRotation] = useState(0)
-    
+
     useEffect(() => {
-        getItems().then(setItems).catch(console.error);
-        getWheel().then(setWheels).catch(console.error);
-    }, [])
-
-    const addItem = (e: React.FormEvent) => {
-        e.preventDefault()
-
-        // const newItem: Item = { name, description };
-        // await createItem(newItem);
-        // onItemAdded();
-        // setName("");
-        // setDescription("");
-        // if (newItem.trim() !== '') {
-        //     setItems([
-        //         ...items,
-        //         {
-        //             id: Date.now(),
-        //             text: newItem.trim(),
-        //             color: COLORS[items.length % COLORS.length],
-        //         },
-        //     ])
-        //     setNewItem('')
-        // }
-    }
-
-    const removeItem = (id: number) => {
-        setItems(items.filter(item => item.id !== id))
-    }
-
+        getItemsById(id).then(setItems).catch(console.error);
+    }, []);
     const spinWheel = () => {
         if (items.length < 2 || spinning) return;
         setSpinning(true);
@@ -80,9 +47,6 @@ export default function SpinWheel() {
             setResult(items[winningIndex]?.name || 'Error: Item not found');
         }, 5000);
     };
-
-
-
     const renderWheel = () => {
         const totalItems = items.length
         const wheelRadius = 150
@@ -115,7 +79,7 @@ export default function SpinWheel() {
                         ].join(" ")
 
                         return (
-                            <g key={item.id}>
+                            <g key={item._id}>
                                 <path d={pathData} fill={item.color} />
                                 <text
                                     x={centerX + (wheelRadius * 0.7 * Math.cos((startAngle + endAngle) / 2))}
@@ -138,14 +102,32 @@ export default function SpinWheel() {
         )
     }
 
+    const addItem = async () => {
+        try {
+            const itemToAdd = {
+                name: newItem.trim(),
+                color: COLORS[items.length % COLORS.length],
+                description: 'Description',
+                wheelId: id
+            };
+            console.log(await createItem(itemToAdd));
+            setNewItem(''); // Clear the input field
+            getItemsById(id).then(setItems).catch(console.error);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    
     return (
         <div className="min-h-screen text-black bg-gray-100 w-full py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto">
-                <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">Spin the Wheel</h1>
 
+                
+            <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">Spin the Wheel</h1>
                 <div className="bg-white shadow-lg rounded-lg overflow-hidden">
                     <div className="p-6">
-                        <div className="flex flex-col items-center justify-center mb-8 relative">
+                    <div className="flex flex-col items-center justify-center mb-8 relative">
                             <ArrowDown className='text-black' />
                             {renderWheel()}
 
@@ -161,7 +143,6 @@ export default function SpinWheel() {
                                 {spinning ? 'Spinning...' : 'Spin the Wheel'}
                             </button>
                         </div>
-
                         <AnimatePresence>
                             {result && (
                                 <motion.div
@@ -195,24 +176,15 @@ export default function SpinWheel() {
                                 Add Item
                             </button>
                         </form>
-
-                        <ul className="divide-y divide-gray-200" aria-label="Wheel items">
-                            {items.map((item) => (
-                                <li key={item.id} className="py-3 flex justify-between items-center">
-                                    <span className="text-gray-800">{item.name}</span>
-                                    <button
-                                        onClick={() => removeItem(item.id)}
-                                        className="text-red-500 hover:text-red-600"
-                                        aria-label={`Remove ${item.name}`}
-                                    >
-                                        <Trash2 aria-hidden="true" />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
                     </div>
                 </div>
-            </div>
+                </div>
+            {items.map(item => (
+                    <div key={item._id} onClick={() => console.log(item._id)} className='p-2 bg-green-300 hover:bg-green-500 cursor-pointer rounded-md w-[250px]'>
+                        <label className='text-green-800 font-bold'>{item.name}</label>
+
+                    </div>
+                ))}
         </div>
-    )
+    );
 }
